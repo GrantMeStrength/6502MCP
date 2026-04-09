@@ -534,6 +534,156 @@ class Emulator6502Tests: XCTestCase {
         XCTAssertEqual(bytes[4], 0xEA) // NOP
     }
     
+    // MARK: - KIM Venture debugging
+
+    /// Parse papertape format and load into memory via Write()
+    private func loadPapertape(_ ptp: String) {
+        for line in ptp.components(separatedBy: ";") {
+            let l = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if l.isEmpty || l.count < 6 { continue }
+            guard let nBytes = UInt8(String(l.prefix(2)), radix: 16) else { continue }
+            if nBytes == 0 { continue }
+            let addrStr = String(l[l.index(l.startIndex, offsetBy: 2)..<l.index(l.startIndex, offsetBy: 6)])
+            guard let addr = UInt16(addrStr, radix: 16) else { continue }
+            for i in 0..<Int(nBytes) {
+                let start = l.index(l.startIndex, offsetBy: 6 + i * 2)
+                let end = l.index(start, offsetBy: 2)
+                if end > l.endIndex { break }
+                guard let byte = UInt8(String(l[start..<end]), radix: 16) else { continue }
+                MOS6502.Write(address: addr &+ UInt16(i), byte: byte)
+            }
+        }
+    }
+
+    func testKIMVentureTrace() throws {
+        // Load KIM Venture papertape data
+        let zeroPagePTP = """
+        ;18000084EFA000A97F8D4117A20984FCB9F000204E1FC8C00690F30BAA
+        ;180018203D1F206A1FA4EF6077395E79760638545C506D781C004007C4
+        ;1800307C713D1E37733E6E53085B0000000000FFEC0000000BFF000691
+        ;18004800000003000204081020408034002BBEDC43E425221C468C05B6
+        ;18006089B5E7D7AE06091118D33C4F387BABDB705293EF6A28739B0BD5
+        ;180078EB565D82F3883F4E434C4D52500094114A450395054B4596092D
+        ;180090024B8F104406805049050204810A4A43825247520783704106C2
+        ;1800A8488461464F852155548600870C4E42892E574B56408A0C540853
+        ;1800C041018B0F495755568C3052538D2A5150468E0D434D4797090810
+        ;1700D8494B90204C91354D534C4692204893334D5152449F009F08A9
+        ;00000A000A
+        """
+        let gamePTP = """
+        ;180100D8A5458545A27BE8E8B50010FB8642291FC545D0F209A0950C6C
+        ;18011800B4012901AA843BB45F20B302A645B46520B302A645CAD009BF
+        ;18013012AD0617290FAA8546BDE71F853CA08F20B302A90B4C0002085C
+        ;180148A641E64CD002F601A0FC20B302C906B0034CA517C90B90E80B8A
+        ;180160F09EC90F90DFD0E8A953853CA09E20B302A0E1C546D0D1A90EAC
+        ;18017803A645F02AA900E005B03BCAF0DAE63DEAD01CA642B501A00CDD
+        ;180190FFC84A9005E8C4F7F009C005D0F3A0F74C2202B501291F4C0CC4
+        ;1801A80301A449A54588F01188F021A20788F024A20588F01FA0850B66
+        ;1801C0D0DEC908D0F8A540F0F4C88440A0BD20B3024C7F02C906D00E13
+        ;1801D8E5A90D10CAE445D0DDB54FD565F0D795658A10BBA63FB5010E2B
+        ;1801F09500E8E0EFD0F760000000000000000038E90DAA4A2901A80970
+        ;18020849018543E886552080178448F00FA655D00EA547C904D00809E3
+        ;180220A0FA20B3024C4801B46220B302C64830F4A444843FB600860A42
+        ;18023849B45720B302A4553004C915D004C644D0E3883005F0294C0A39
+        ;180250AA01A0F7A649CAD008A53E2928C920D0BF8A30BEE647A53E0C71
+        ;180268154D853E209017C64120EC01A04CD0AAE641209017E63FC60AC1
+        ;18028047A649A53E38F54C853E20EC01A54010E3A649CAD0DEA5450C25
+        ;180298C908D0D8A985853F8640A9058DBD03A0BD20B302F0C1188A0C63
+        ;1802B0654AA8844AA200A00086FE86FD18B14A486A4A4A4AF032C90BC6
+        ;1802C801F034AAB51FA6FD95F068E886FD290FC901F026AAB51FA60DBC
+        ;1802E0FD95F0C8E8E00690D2A0C020000020000088D0F7A6FED0B60E8D
+        ;1802F8606885FEC810BC6810DAC838B0B835882B0516EB1685AB230C02
+        ;1803108503FB54FFBAA15F07CDA95F1652B8CD516CF32135F127850C27
+        ;180328F36ED50511B741350823BACC0CFA1659F13E881804CD558F0A66
+        ;18034013B2D5FBA165F13A84F32135F4A95F2F6A8507FD7136DE990D2A
+        ;18035858FC6212DF051B10793604FC87DF0979FD650DA18CD5BF080B19
+        ;180370CDB52151AF167DF101154F04BA1828F6288F2F13859AF14A0A5E
+        ;18038818EFBF2DEFBF79082FC71391AF167D07FC218CF2DD7305150BAD
+        ;1803A021373F0511EDDA9FF7CF1DF6AEC5FEC5F107628D547FC5510DAD
+        ;1803B8061118FD650E4B213A9F04C32B5409AEDF111804F52DCF0D08BE
+        ;1803D087DD850FF118E5F4BA161004F117B4FBAA15F459FFBA4F320DA6
+        ;1803E8BB1810C1AF167D13BADDAF12AB5CDF3299AD6A17F19FFF1C0CDE
+        ;0000200020
+        """
+        let extraPTP = """
+        ;181780B641A0FFE88644B5010A30F8C890F560A443208017A2EEB50D6F
+        ;181798009501CAE444D0F7A549950160A884F7A645B565D54FF0080D3E
+        ;1817B0E005F024E007F022E00CD004A547D018E003D004A53E30110B40
+        ;1817C8E008D015A540F01188F00EA0B14C22028888C003D0034C200B03
+        ;0417E0024C8B0101D5
+        ;0000050005
+        """
+
+        loadPapertape(zeroPagePTP)
+        loadPapertape(gamePTP)
+        loadPapertape(extraPTP)
+
+        // Verify data at $1780 actually loaded (RIOT fix check)
+        let byte1780 = MOS6502.Read(address: 0x1780)
+        XCTAssertEqual(byte1780, 0xB6, "$1780 should contain $B6 (LDX zp,Y) — RIOT must not intercept")
+
+        // Dump ROM bytes at $1F4E-$1F60 (where loop occurs)
+        print("ROM bytes at $1F4E-$1F65:")
+        for addr: UInt16 in stride(from: 0x1F4E, through: 0x1F65, by: 1) {
+            let b = MOS6502.Read(address: addr)
+            print(String(format: "  $%04X: $%02X", addr, b), terminator: "")
+        }
+        print()
+
+        // Start execution at $0100
+        MOS6502.SetPC(ProgramCounter: 0x0100)
+
+        // Full trace log of last 50 steps before loop
+        var fullTrace: [(pc: UInt16, a: UInt8, x: UInt8, y: UInt8, sp: UInt8)] = []
+        var outputText = ""
+        var hitGETCH = false
+        var steps = 0
+        let maxSteps = 2000000
+        var loopDetected = false
+
+        // Better infinite loop detection: track how many times each PC is visited
+        var pcVisits: [UInt16: Int] = [:]
+        let loopThreshold = 50000 // truly infinite = same PC many thousands of times
+
+        while steps < maxSteps {
+            let pc = MOS6502.GetPC()
+
+            // Detect OUTCH — capture output
+            if pc == 0x1EA0 {
+                let a = MOS6502.getA()
+                if a >= 13 { outputText.append(String(format: "%c", a)) }
+            }
+            if pc == 0x1E65 { hitGETCH = true; break }
+
+            fullTrace.append((pc, MOS6502.getA(), MOS6502.getX(), MOS6502.getY(), MOS6502.getSP()))
+            if fullTrace.count > 100 { fullTrace.removeFirst() }
+
+            // Count visits per PC
+            pcVisits[pc, default: 0] += 1
+            if pcVisits[pc]! >= loopThreshold {
+                loopDetected = true
+                print("INFINITE LOOP: PC $\(String(format: "%04X", pc)) hit \(loopThreshold) times at step \(steps)")
+                break
+            }
+
+            let result = MOS6502.Step()
+            if result.address == 0xFFFF { print("CRASH at step \(steps)"); break }
+            steps += 1
+        }
+
+        print("\n--- KIM Venture trace ---")
+        print("Steps: \(steps), Final PC: \(String(format: "$%04X", MOS6502.GetPC()))")
+        print("GETCH reached: \(hitGETCH), Loop: \(loopDetected)")
+        print("Output: [\(outputText)]")
+        print("\nLast 50 steps:")
+        for entry in fullTrace.suffix(50) {
+            let opcode = MOS6502.Read(address: entry.pc)
+            let op1 = MOS6502.Read(address: entry.pc &+ 1)
+            let op2 = MOS6502.Read(address: entry.pc &+ 2)
+            print(String(format: "  $%04X: %02X %02X %02X  A=%02X X=%02X Y=%02X SP=%02X", entry.pc, opcode, op1, op2, entry.a, entry.x, entry.y, entry.sp))
+        }
+    }
+
     func testAssemblerINCA_DECA() throws {
         // Verify INCA/DECA assemble to correct 65C02 opcodes
         let assembler = Assembler6502()

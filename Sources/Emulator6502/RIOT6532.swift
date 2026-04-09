@@ -86,19 +86,17 @@ class RIOT6532 {
     // MARK: - Memory Access Methods
     
     func isRIOTAddress(_ address: UInt16) -> Bool {
-        // KIM-1 RIOT occupies 0x1700-0x177F (128 bytes, mirrored)
-        // This includes:
-        // 0x1740-0x1743: I/O registers (PRA, DDRA, PRB, DDRB)
-        // 0x1744-0x174F: Timer registers (various modes)
-        // 0x17C0-0x17DF: 64 bytes RAM (mirrored to 128 bytes)
+        // KIM-1 has two 6530 RRIOTs:
+        //   6530-002: I/O at $1740-$177F, RAM at $17C0-$17FF
+        //   6530-003: I/O at $1700-$173F, RAM at $1780-$17BF
         //
-        // MUST NOT include 0x17F8-0x17FF which are interrupt vectors in ROM!
-        // 0x17FA-0x17FB: NMI vector
-        // 0x17FC-0x17FD: RESET vector ← THIS WAS THE BUG!
-        // 0x17FE-0x17FF: IRQ vector
+        // We emulate I/O registers at $1740-$177F (with $1700-$173F mirrored).
+        // $1780-$17BF and $17C0-$17FF are on-chip RAM on the real hardware;
+        // they work fine as regular memory in the emulator, so we must NOT
+        // intercept them here. Programs like KIM Venture store code there.
         
         let normalized = normalizedAddress(address)
-        return normalized >= baseAddress && normalized <= (baseAddress + 0x7F)
+        return normalized >= baseAddress && normalized <= (baseAddress + 0x3F)
     }
     
     func readRegister(address: UInt16) -> UInt8 {
