@@ -93,7 +93,7 @@ class RIOT6532 {
         // We emulate I/O registers at $1740-$177F (with $1700-$173F mirrored).
         // $1780-$17BF and $17C0-$17FF are on-chip RAM on the real hardware;
         // they work fine as regular memory in the emulator, so we must NOT
-        // intercept them here. Programs like KIM Venture store code there.
+        // intercept them here. Programs may store code there.
         
         let normalized = normalizedAddress(address)
         return normalized >= baseAddress && normalized <= (baseAddress + 0x3F)
