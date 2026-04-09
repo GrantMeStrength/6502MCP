@@ -63,12 +63,28 @@ final class EmulatorSession {
     }
 
     func registers() -> [String: Any] {
-        [
+        let sr = cpu.GetStatusRegister()
+        return [
             "A": Int(cpu.getA()),
             "X": Int(cpu.getX()),
             "Y": Int(cpu.getY()),
+            "SP": Int(cpu.getSP()),
             "PC": Int(cpu.GetPC()),
-            "status": Int(cpu.GetStatusRegister())
+            "status": Int(sr),
+            "flags": [
+                "N": (sr & 0x80) != 0,
+                "V": (sr & 0x40) != 0,
+                "B": (sr & 0x10) != 0,
+                "D": (sr & 0x08) != 0,
+                "I": (sr & 0x04) != 0,
+                "Z": (sr & 0x02) != 0,
+                "C": (sr & 0x01) != 0
+            ] as [String: Any],
+            "A_hex": String(format: "$%02X", cpu.getA()),
+            "X_hex": String(format: "$%02X", cpu.getX()),
+            "Y_hex": String(format: "$%02X", cpu.getY()),
+            "PC_hex": String(format: "$%04X", cpu.GetPC()),
+            "SP_hex": String(format: "$%02X", cpu.getSP())
         ]
     }
 }
@@ -241,9 +257,12 @@ final class MCPServer {
                 return toolError("read_memory requires address and length.")
             }
             let bytes = session.readMemory(address: UInt16(address), length: max(0, length))
+            let hex = bytes.map { String(format: "%02X", $0) }.joined(separator: " ")
             return toolResult([
                 "address": address,
-                "bytes": bytes.map(Int.init)
+                "address_hex": String(format: "$%04X", address),
+                "bytes": bytes.map(Int.init),
+                "hex": hex
             ])
         case "write_memory":
             guard let address = intParam(arguments["address"]),

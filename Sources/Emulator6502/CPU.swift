@@ -633,6 +633,11 @@ public final class CPU: ObservableObject {
         return Y
     }
     
+    public func getSP() -> UInt8
+    {
+        return SP
+    }
+    
     func NotInROM() -> Bool
     {
         // Used by the SST to skip over ROM code
@@ -799,6 +804,7 @@ public final class CPU: ObservableObject {
         case 0x16 : ASL_zx()
         case 0x18 : CLC()
         case 0x19 : OR_indexed_y()
+        case 0x1A : INC_A()  // 65C02: INC A
             
         case 0x1D : OR_indexed_x()
         case 0x1E : ASL_indexed_x()
@@ -827,6 +833,7 @@ public final class CPU: ObservableObject {
             
         case 0x38 : SEC()
         case 0x39 : AND_indexed_y()
+        case 0x3A : DEC_A()  // 65C02: DEC A
             
         case 0x3D : AND_indexed_x()
         case 0x3E : ROL_indexed_x()
@@ -1233,8 +1240,7 @@ public final class CPU: ObservableObject {
         if n == v { ZERO_FLAG = true } else { ZERO_FLAG = false }
         // Negative flag set from bit 7 of result (signed)
         NEGATIVE_FLAG = (result & 0x80) == 0x80
-        // Overflow flag not affected by CMP instruction
-        OVERFLOW_FLAG = false
+        // Overflow flag is NOT affected by CMP/CPX/CPY on the real 6502
     }
     
     // X Comparisons
@@ -2287,6 +2293,20 @@ public final class CPU: ObservableObject {
         
         SetFlags(value: X)
         prn("INX")
+    }
+    
+    func INC_A() // 1A (65C02)
+    {
+        A = A &+ 1
+        SetFlags(value: A)
+        prn("INC A")
+    }
+    
+    func DEC_A() // 3A (65C02)
+    {
+        A = A &- 1
+        SetFlags(value: A)
+        prn("DEC A")
     }
     
     func DEX() // CA

@@ -456,5 +456,97 @@ class Emulator6502Tests: XCTestCase {
             // Put the code you want to measure the time of here.
         }
     }
+    
+    func testCMPDoesNotAffectOverflowFlag() throws {
+        // CMP/CPX/CPY must NOT modify the overflow flag on a real 6502.
+        // Set overflow flag, then do a CMP — it should remain set.
+        MOS6502.SetPC(ProgramCounter: 0x200)
+        
+        // CLV then set overflow via ADC that overflows:
+        // LDA #$50, CLC, ADC #$50 → 0xA0 (signed overflow from +80+80=-96)
+        MOS6502.Write(address: 0x200, byte: 0xD8) // CLD
+        MOS6502.Write(address: 0x201, byte: 0xA9) // LDA #$50
+        MOS6502.Write(address: 0x202, byte: 0x50)
+        MOS6502.Write(address: 0x203, byte: 0x18) // CLC
+        MOS6502.Write(address: 0x204, byte: 0x69) // ADC #$50
+        MOS6502.Write(address: 0x205, byte: 0x50)
+        
+        MOS6502.SetPC(ProgramCounter: 0x200)
+        MOS6502.Execute() // CLD
+        MOS6502.Execute() // LDA #$50
+        MOS6502.Execute() // CLC
+        MOS6502.Execute() // ADC #$50 → A=0xA0, V=1
+        
+        let srBefore = MOS6502.GetStatusRegister()
+        XCTAssertTrue((srBefore & 0x40) != 0, "Overflow should be set after ADC overflow")
+        
+        // Now CMP #$00 — should NOT clear overflow
+        MOS6502.Write(address: 0x206, byte: 0xC9) // CMP #$00
+        MOS6502.Write(address: 0x207, byte: 0x00)
+        MOS6502.Execute() // CMP
+        
+        let srAfter = MOS6502.GetStatusRegister()
+        XCTAssertTrue((srAfter & 0x40) != 0, "CMP must not clear the overflow flag")
+    }
+    
+    func testINC_A_DEC_A() throws {
+        // Test 65C02 INC A (0x1A) and DEC A (0x3A)
+        MOS6502.SetPC(ProgramCounter: 0x200)
+        
+        MOS6502.Write(address: 0x200, byte: 0xA9) // LDA #$05
+        MOS6502.Write(address: 0x201, byte: 0x05)
+        MOS6502.Write(address: 0x202, byte: 0x1A) // INC A
+        MOS6502.Write(address: 0x203, byte: 0x3A) // DEC A
+        MOS6502.Write(address: 0x204, byte: 0x3A) // DEC A
+        
+        MOS6502.SetPC(ProgramCounter: 0x200)
+        MOS6502.Execute() // LDA #$05
+        XCTAssertEqual(MOS6502.getA(), 0x05)
+        
+        MOS6502.Execute() // INC A → 6
+        XCTAssertEqual(MOS6502.getA(), 0x06, "INC A should increment accumulator")
+        
+        MOS6502.Execute() // DEC A → 5
+        XCTAssertEqual(MOS6502.getA(), 0x05, "DEC A should decrement accumulator")
+        
+        MOS6502.Execute() // DEC A → 4
+        XCTAssertEqual(MOS6502.getA(), 0x04, "DEC A should decrement accumulator again")
+    }
+    
+    func testAssemblerASL() throws {
+        // Verify ASL assembles correctly and PC tracking is right
+        let assembler = Assembler6502()
+        let source = """
+        ORG $0200
+        LDA #$01
+        ASL $10
+        NOP
+        """
+        let result = assembler.assemble(source: source)
+        XCTAssertEqual(result.origin, 0x0200)
+        // Expected bytes: A9 01 (LDA #$01), 06 10 (ASL $10), EA (NOP) = 5 bytes
+        let bytes = Array(result.objectCode.dropFirst(2)) // skip origin header
+        XCTAssertEqual(bytes.count, 5, "ASL zero-page should produce correct byte count")
+        XCTAssertEqual(bytes[0], 0xA9) // LDA
+        XCTAssertEqual(bytes[1], 0x01) // #$01
+        XCTAssertEqual(bytes[2], 0x06) // ASL zp
+        XCTAssertEqual(bytes[3], 0x10) // $10
+        XCTAssertEqual(bytes[4], 0xEA) // NOP
+    }
+    
+    func testAssemblerINCA_DECA() throws {
+        // Verify INCA/DECA assemble to correct 65C02 opcodes
+        let assembler = Assembler6502()
+        let source = """
+        ORG $0200
+        INCA
+        DECA
+        """
+        let result = assembler.assemble(source: source)
+        let bytes = Array(result.objectCode.dropFirst(2))
+        XCTAssertEqual(bytes.count, 2)
+        XCTAssertEqual(bytes[0], 0x1A, "INCA should assemble to 0x1A (65C02 INC A)")
+        XCTAssertEqual(bytes[1], 0x3A, "DECA should assemble to 0x3A (65C02 DEC A)")
+    }
 
 }

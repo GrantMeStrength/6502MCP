@@ -18,8 +18,8 @@ public final class Assembler6502 {
         objectCodeText = ""
 
         let singleByteInstructions: [String: UInt] = [
-            "BRK": 0x00, "PHP": 0x08, "CLC": 0x18, "INCA": 0x18, "PLP": 0x28, "SEC": 0x38,
-            "DECA": 0x38, "RTI": 0x40, "PHA": 0x48, "CLI": 0x58, "PHY": 0x5A, "RTS": 0x60,
+            "BRK": 0x00, "PHP": 0x08, "CLC": 0x18, "INCA": 0x1A, "PLP": 0x28, "SEC": 0x38,
+            "DECA": 0x3A, "RTI": 0x40, "PHA": 0x48, "CLI": 0x58, "PHY": 0x5A, "RTS": 0x60,
             "PLA": 0x68, "SEI": 0x78, "PLY": 0x7A, "DEY": 0x88, "TXA": 0x8A, "TYA": 0x98,
             "TXS": 0x9A, "TAY": 0xA8, "TAX": 0xAA, "CLV": 0xB8, "TSX": 0xBA, "INY": 0xC8,
             "DEX": 0xCA, "CLD": 0xD8, "PHX": 0xDA, "INX": 0xE8, "NOP": 0xEA, "SED": 0xF8,
@@ -167,6 +167,7 @@ public final class Assembler6502 {
                     index += 1
                 } else if word == "ASL" {
                     numberOfBytes = SHIFTandROTATES(offset: 0, param: tokens[index])
+                    PC += numberOfBytes
                     index += 1
                 } else if word == "ROL" {
                     numberOfBytes = SHIFTandROTATES(offset: 20, param: tokens[index])
@@ -653,11 +654,11 @@ public final class Assembler6502 {
 
     private func INCDEC(offset: UInt8, param: String) -> UInt16 {
         if param == "A" && offset == 0xC0 {
-            addInstruction(offset + 0x3A)
+            addInstruction(0x3A) // 65C02: DEC A
             return 1
         }
         if param == "A" && offset == 0xE0 {
-            addInstruction(offset + 0x1A)
+            addInstruction(0x1A) // 65C02: INC A
             return 1
         }
         let r = GetAddresingMode(token: param)
