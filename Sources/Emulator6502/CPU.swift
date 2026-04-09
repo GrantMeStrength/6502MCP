@@ -173,8 +173,9 @@ public final class CPU: ObservableObject {
         // The 6502 pushes PC+2 and status with B flag set on stack.
         // The internal BREAK_FLAG is not set in CPU status register (only on push).
         
-        // Push PC+2 (address after BRK instruction, which is 2 bytes)
-        let returnPC = PC &+ 2
+        // Push return address: BRK is 2 bytes (opcode + padding).
+        // Execute() already incremented PC once, so PC &+ 1 = original_PC + 2.
+        let returnPC = PC &+ 1
         push(UInt8(returnPC >> 8))
         push(UInt8(returnPC & 0x00FF))
         

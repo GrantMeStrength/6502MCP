@@ -711,6 +711,7 @@ public final class Assembler6502 {
                 return (n, .Indirect)
             }
             perror(error: token)
+            return (0, .Error)
         }
 
         if token.contains("(") && token.contains("X") {
@@ -722,6 +723,7 @@ public final class Assembler6502 {
                 return (n, .IndirectX)
             }
             perror(error: token)
+            return (0, .Error)
         }
 
         if token.contains("(") && token.contains("Y") {
@@ -733,6 +735,7 @@ public final class Assembler6502 {
                 return (n, .IndirectY)
             }
             perror(error: token)
+            return (0, .Error)
         }
 
         if token.contains(",Y") {
@@ -740,6 +743,7 @@ public final class Assembler6502 {
                 return (n, .AbsoluteY)
             }
             perror(error: token)
+            return (0, .Error)
         }
 
         if !token.contains(",X") {
@@ -750,6 +754,7 @@ public final class Assembler6502 {
                 return (n, .Absolute)
             }
             perror(error: token)
+            return (0, .Error)
         }
 
         if token.contains(",X") {
@@ -760,6 +765,7 @@ public final class Assembler6502 {
                 return (n, .AbsoluteX)
             }
             perror(error: token)
+            return (0, .Error)
         }
 
         return (0, .Error)
