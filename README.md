@@ -12,9 +12,8 @@ I’ve not tried it, but prefacing your work with a description of your specific
 
 ## What this project does
 
-- **Emulator6502 (library)**: 6502 CPU, memory map, KIM‑1 ROM loader, MOS 6532 RIOT emulation, and utility loaders.
-- **Assembler6502 (library)**: two‑pass 6502 assembler producing object code, listing output, and a symbol table.
-- **MCPServer (executable)**: MCP JSON‑RPC server over stdio that connects tools to the emulator and assembler.
+- **Emulator6502 (library)**: 6502 CPU, memory map, two‑pass assembler (with listing and symbol table), KIM‑1 and Apple 1 ROM loaders, MOS 6532 RIOT emulation, and utility loaders.
+- **MCPServer (executable)**: MCP JSON‑RPC server over stdio that exposes the emulator and assembler as tools.
 
 ## Mac quickstart (bash)
 
@@ -77,15 +76,17 @@ The server speaks MCP JSON‑RPC over stdio using `Content-Length` framing and w
 
 ### Included tools
 
-- `assemble`: assemble 6502 source into object code and a listing.
-- `assemble_and_load`: assemble, load into memory, and set the PC to the origin.
-- `load`: load raw bytes into memory.
-- `reset`: reset the emulator and memory map.
-- `set_pc`: set the program counter.
-- `run`: run a number of CPU steps.
-- `read_memory`: read memory bytes.
-- `write_memory`: write memory bytes.
-- `get_registers`: inspect CPU registers and flags.
+| Tool | Description | Required params | Optional params |
+|---|---|---|---|
+| `assemble` | Assemble 6502 source into object code and a listing. Returns origin, object code, listing, and symbol table. | `source` (string) | — |
+| `assemble_and_load` | Assemble 6502 source, load it into memory, and set PC to the origin. | `source` (string) | — |
+| `load` | Load raw bytes into memory at the given origin address. | `origin` (int), `bytes` (int array) | — |
+| `reset` | Reset the emulator and reload the default memory map. | — | `computer` (`"KIM1"` default, or `"APL"` for Apple 1) |
+| `set_pc` | Set the program counter. | `address` (int) | — |
+| `run` | Run the CPU for a number of steps. Stops early on BRK. | — | `steps` (int, default 1000), `startAddress` (int) |
+| `read_memory` | Read a range of memory. Returns decimal bytes and a hex string. | `address` (int), `length` (int) | — |
+| `write_memory` | Write bytes into memory. | `address` (int), `bytes` (int array) | — |
+| `get_registers` | Get CPU register values (A, X, Y, SP, PC), status flags, and hex representations. | — | — |
 
 ## Tests
 
