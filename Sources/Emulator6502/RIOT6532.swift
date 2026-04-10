@@ -29,6 +29,7 @@ class RIOT6532 {
     private var timerTickCount: Int = 0
     private var timerInterruptEnable: Bool = false
     private var timerUnderflowFlag: Bool = false
+    private var timerHasUnderflowed: Bool = false  // tracks post-underflow ÷1 mode
     
     // PA7 Interrupt Control
     private var pa7InterruptEnable: Bool = false
@@ -74,6 +75,7 @@ class RIOT6532 {
         timerTickCount = 0
         timerInterruptEnable = false
         timerUnderflowFlag = false
+        timerHasUnderflowed = false
         
         pa7InterruptEnable = false
         pa7EdgeDetect = false
@@ -238,14 +240,21 @@ class RIOT6532 {
     // MARK: - Timer Operations
     
     private func readTimer(offset: UInt16) -> UInt8 {
-        // Reading timer status/value
         if offset == 0x07 || offset == 0x0F {
-            // Status register - bit 7 indicates timer underflow
-            let status: UInt8 = timerUnderflowFlag ? 0x80 : 0x00
-            timerUnderflowFlag = false // Clear flag on read
+            // Interrupt status register
+            // Bit 7 = timer underflow flag, bit 6 = PA7 edge-detect flag
+            var status: UInt8 = 0
+            if timerUnderflowFlag  { status |= 0x80 }
+            if pa7InterruptFlag    { status |= 0x40 }
+            // Reading status clears both flags
+            timerUnderflowFlag = false
+            pa7InterruptFlag = false
             return status
         } else {
-            // Return current timer value
+            // Timer value read. Reading clears the underflow flag
+            // and resets the post-underflow ÷1 mode.
+            timerUnderflowFlag = false
+            timerHasUnderflowed = false
             return timerCounter
         }
     }
@@ -254,6 +263,7 @@ class RIOT6532 {
         timerCounter = value
         timerTickCount = 0
         timerUnderflowFlag = false
+        timerHasUnderflowed = false
         timerInterruptEnable = interruptEnable
         
         // Set clock divider based on address
@@ -269,15 +279,17 @@ class RIOT6532 {
     func timerTick(cycles: Int = 1) {
         timerTickCount += cycles
         
-        while timerTickCount >= timerDivider {
-            timerTickCount -= timerDivider
+        let divider = timerHasUnderflowed ? 1 : timerDivider
+        while timerTickCount >= divider {
+            timerTickCount -= divider
             
             if timerCounter > 0 {
                 timerCounter -= 1
             } else {
-                // Timer underflow
+                // Timer underflow — flag it and switch to ÷1
                 timerUnderflowFlag = true
-                timerCounter = 0xFF // Wrap to 255
+                timerHasUnderflowed = true
+                timerCounter = 0xFF
             }
         }
     }
