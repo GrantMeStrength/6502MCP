@@ -166,19 +166,19 @@ public final class Assembler6502 {
                     PC += numberOfBytes
                     index += 1
                 } else if word == "ASL" {
-                    numberOfBytes = SHIFTandROTATES(offset: 0, param: tokens[index])
+                    numberOfBytes = SHIFTandROTATES(offset: 0x00, param: tokens[index])
                     PC += numberOfBytes
                     index += 1
                 } else if word == "ROL" {
-                    numberOfBytes = SHIFTandROTATES(offset: 20, param: tokens[index])
+                    numberOfBytes = SHIFTandROTATES(offset: 0x20, param: tokens[index])
                     PC += numberOfBytes
                     index += 1
                 } else if word == "ROR" {
-                    numberOfBytes = SHIFTandROTATES(offset: 60, param: tokens[index])
+                    numberOfBytes = SHIFTandROTATES(offset: 0x60, param: tokens[index])
                     PC += numberOfBytes
                     index += 1
                 } else if word == "LSR" {
-                    numberOfBytes = SHIFTandROTATES(offset: 40, param: tokens[index])
+                    numberOfBytes = SHIFTandROTATES(offset: 0x40, param: tokens[index])
                     PC += numberOfBytes
                     index += 1
                 } else if word == "BIT" {
